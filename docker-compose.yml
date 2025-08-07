@@ -13,7 +13,7 @@ services:
     restart: always
 
   devop_blue:
-    image: nginx:latest
+    image:   nginx
     restart: always
   
   devop_green:
