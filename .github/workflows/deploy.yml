@@ -26,6 +26,7 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
+          cd /home/ubuntu/devop
           docker pull ${{ secrets.DOCKER_USERNAME }}/devop:green
           docker compose up -d
 
