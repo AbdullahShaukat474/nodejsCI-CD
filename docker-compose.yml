@@ -12,7 +12,7 @@ services:
     restart: always
 
     devop_blue:
-      image: yourdockerhubusername/devop:blue
+      image: nginx:latest
       restart: always
   
     devop_green:
