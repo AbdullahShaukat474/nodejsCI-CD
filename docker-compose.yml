@@ -1,4 +1,5 @@
 version: "3.8"
+  
 services:
   nginx:
     image: nginx:alpine
@@ -11,10 +12,10 @@ services:
       - devop_green
     restart: always
 
-    devop_blue:
-      image: nginx:latest
-      restart: always
+  devop_blue:
+    image: nginx:latest
+    restart: always
   
-    devop_green:
-      image: yourdockerhubusername/devop:green
+  devop_green:
+    image: abdullahshaukat474/devop:green
     restart: always

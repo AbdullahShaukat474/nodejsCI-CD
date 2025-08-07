@@ -5,7 +5,7 @@ const PORT = 3000;
 
 //Root route
 app.get('/', (req, res) => {
-    res.send('Hello World v2');
+    res.send('Hello World v3');
 });
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
