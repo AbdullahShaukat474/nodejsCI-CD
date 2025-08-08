@@ -13,7 +13,6 @@ services:
     restart: always
 
   devop_blue:
-    #   image:   abdullahshaukat474/devops:blue
     image: abdullahshaukat474/devops:blue
     restart: always
   
