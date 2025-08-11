@@ -5,7 +5,7 @@ const PORT = 3000;
 
 //Root route
 app.get('/', (req, res) => {
-    res.send('abi hum blue version v1 run kry gy ');
+    res.send('abi hum blue version v1 sai sy run kry gy ');
 });
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
