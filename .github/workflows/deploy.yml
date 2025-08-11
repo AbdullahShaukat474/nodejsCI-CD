@@ -15,28 +15,8 @@ jobs:
     - name: Log in to Docker Hub
       run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-    # STEP 1: Pull current green image and tag it as blue (backup old stable)
-    - name: Pull current green image (if exists)
-      run: |
-        docker pull ${{ secrets.DOCKER_USERNAME }}/devop:green || echo "Green image not found, skipping pull"
-
-    - name: Retag green as blue (preserve old)
-      run: |
-        if docker image inspect ${{ secrets.DOCKER_USERNAME }}/devop:green > /dev/null 2>&1; then
-          docker tag ${{ secrets.DOCKER_USERNAME }}/devop:green ${{ secrets.DOCKER_USERNAME }}/devops:blue
-          docker push ${{ secrets.DOCKER_USERNAME }}/devops:blue
-        else
-          echo "No green image to tag as blue"
-        fi
-
-    # STEP 2: Build and push new green image (latest code)
-    - name: Build and push new green image
-      run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/devop:green .
-        docker push ${{ secrets.DOCKER_USERNAME }}/devop:green
-
-    # STEP 3: Deploy to Server (update only green service + nginx)
-    - name: Deploy new green image
+    # Deploy
+    - name: Deploy via SSH
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.SERVER_IP }}
@@ -44,5 +24,44 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
           cd /home/ubuntu/devop
-          docker pull ${{ secrets.DOCKER_USERNAME }}/devop:green
-          docker compose up -d --no-deps devop_green nginx
+
+          # Detect which container is live
+          if grep -q "server devop_blue:3000;" nginx/default.conf; then
+            LIVE="blue"
+            IDLE="green"
+          else
+            LIVE="green"
+            IDLE="blue"
+          fi
+
+          echo "Live container: $LIVE"
+          echo "Idle container (to update): $IDLE"
+
+          # Build and push new image for idle container
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/devop:$IDLE .
+          docker push ${{ secrets.DOCKER_USERNAME }}/devop:$IDLE
+
+          # Pull new image on server & restart only idle container
+          docker pull ${{ secrets.DOCKER_USERNAME }}/devop:$IDLE
+          docker compose up -d --no-deps devop_$IDLE
+
+          # Health check (5 retries, 3 sec delay)
+          for i in {1..5}; do
+            if curl -s http://localhost/health | grep -q "OK"; then
+              HEALTH="ok"
+              break
+            fi
+            echo "Health check retry $i..."
+            sleep 3
+          done
+
+          # If healthy → switch traffic to idle container
+          if [ "$HEALTH" = "ok" ]; then
+            echo "✅ New $IDLE container healthy, switching traffic..."
+            sed -i "s/server devop_${LIVE}:3000;/server devop_${IDLE}:3000;/" nginx/default.conf
+            docker compose up -d nginx
+            docker exec devop-nginx-1 nginx -s reload
+          else
+            echo "❌ New $IDLE container failed, rolling back..."
+            docker compose up -d --no-deps devop_$LIVE
+          fi
